@@ -31,6 +31,14 @@ if(DAXA_ENABLE_TESTS)
     list(APPEND VCPKG_MANIFEST_FEATURES "tests")
 endif()
 
+set(DAXA_ENABLE_UTILS_IMGUI 1)
+set(DAXA_ENABLE_UTILS_MEM 1)
+set(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_GLSLANG 1)
+set(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SLANG 0)
+set(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SPIRV_VALIDATION 1)
+set(DAXA_ENABLE_UTILS_TASK_GRAPH 1)
+set(DAXA_ENABLE_TESTS 1)
+
 project(daxa VERSION 2.0.0)
 
 if(DAXA_ENABLE_STATIC_ANALYSIS)
@@ -59,7 +67,7 @@ if(DAXA_ENABLE_STATIC_ANALYSIS)
 else()
     # TODO(capi): re-enable when not dealing with the compile errors.
     # Also, the features in the CMakePresets are disabled for now
-    set(CMAKE_UNITY_BUILD true)
+    # set(CMAKE_UNITY_BUILD true)
 endif()
 
 add_library(daxa
@@ -102,16 +110,14 @@ endif()
 
 target_compile_features(daxa PUBLIC cxx_std_20)
 
-find_package(Vulkan REQUIRED)
-find_package(VulkanMemoryAllocator CONFIG REQUIRED)
-find_package(fmt CONFIG REQUIRED)
-
 include(GNUInstallDirs)
 
 target_compile_definitions(daxa
     PUBLIC
     $<BUILD_INTERFACE:DAXA_SHADER_INCLUDE_DIR="${CMAKE_CURRENT_LIST_DIR}/include">
 )
+
+add_subdirectory(lib)
 
 if(DAXA_USE_STATIC_CRT AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -122,7 +128,6 @@ if(DAXA_ENABLE_UTILS_FSR2)
         PUBLIC
         DAXA_BUILT_WITH_UTILS_FSR2=true
     )
-    find_package(fsr2 CONFIG REQUIRED)
     target_link_libraries(daxa
         PRIVATE
         fsr2::ffx_fsr2_api
@@ -134,10 +139,9 @@ if(DAXA_ENABLE_UTILS_IMGUI)
         PUBLIC
         DAXA_BUILT_WITH_UTILS_IMGUI=true
     )
-    find_package(imgui CONFIG REQUIRED)
     target_link_libraries(daxa
         PUBLIC
-        imgui::imgui
+        imgui_internal
     )
 endif()
 if(DAXA_ENABLE_UTILS_MEM)
@@ -151,12 +155,11 @@ if(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_GLSLANG)
         PUBLIC
         DAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true
     )
-    find_package(glslang CONFIG REQUIRED)
     find_package(Threads REQUIRED)
     target_link_libraries(daxa
         PRIVATE
-        glslang::glslang
-        glslang::SPIRV
+        glslang
+        SPIRV
     )
 endif()
 if(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SLANG)
@@ -164,20 +167,19 @@ if(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SLANG)
         PUBLIC
         DAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_SLANG=true
     )
-    find_package(shader-slang CONFIG REQUIRED)
-    target_link_libraries(daxa PRIVATE slang::slang)
+    target_link_libraries(daxa PRIVATE slang)
     # NOTE(grundlett): Really hacky. It appears there's no way to create plugin dll dependencies...
     # see https://gitlab.kitware.com/cmake/cmake/-/issues/22993
-    add_custom_command(TARGET daxa POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:slang::glslang> $<TARGET_FILE_DIR:daxa>
-    )
+    # --- Removed hack
+    #add_custom_command(TARGET daxa POST_BUILD
+    #    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:slang::glslang> $<TARGET_FILE_DIR:daxa>
+    #)
 endif()
 if(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SPIRV_VALIDATION)
     target_compile_definitions(daxa
         PUBLIC
         DAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_SPIRV_VALIDATION=true
     )
-    find_package(SPIRV-Tools CONFIG REQUIRED)
     target_link_libraries(daxa
         PRIVATE
         SPIRV-Tools-static
@@ -190,6 +192,7 @@ if(DAXA_ENABLE_UTILS_TASK_GRAPH)
     )
 endif()
 
+find_package(Vulkan REQUIRED)
 target_link_libraries(daxa
     PRIVATE
     GPUOpen::VulkanMemoryAllocator
@@ -204,7 +207,7 @@ target_include_directories(daxa
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    find_package(X11)
+    find_package(X11 QUIET)
     if(X11_FOUND)
         target_compile_definitions(daxa
             PUBLIC
@@ -216,7 +219,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         )
     endif()
 
-    find_package(Wayland)
+    find_package(Wayland QUIET)
     if(Wayland_FOUND)
         target_compile_definitions(daxa
             PUBLIC

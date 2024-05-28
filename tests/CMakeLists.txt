@@ -27,9 +27,10 @@ function(DAXA_CREATE_TEST)
     if(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SLANG)
         # NOTE(grundlett): Really hacky. It appears there's no way to create plugin dll dependencies...
         # see https://gitlab.kitware.com/cmake/cmake/-/issues/22993
-        add_custom_command(TARGET daxa_test_${FOLDER_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:slang::glslang> $<TARGET_FILE_DIR:daxa_test_${FOLDER_NAME}>
-        )
+        # --- Removed hack
+        #add_custom_command(TARGET daxa POST_BUILD
+        #    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:slang::glslang> $<TARGET_FILE_DIR:daxa>
+        #)
     endif()
 endfunction()
 
